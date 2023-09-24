@@ -7,12 +7,14 @@ import (
 )
 
 // CopyFixed copies bytes from 'src' to 'dst'.
-//
 // 'src' must meet requirements for 'data' from [binary.Write].
 // 'dst' must meet requirements for 'data' from [binary.Read].
 func CopyFixed(src, dst any) error {
-	if src == nil || dst == nil {
-		return errors.New("nil src or/and dst")
+	if src == nil {
+		return errors.New("src is nil")
+	}
+	if dst == nil {
+		return errors.New("dst is nil")
 	}
 	var b bytes.Buffer
 	if err := binary.Write(&b, binary.LittleEndian, src); err != nil {

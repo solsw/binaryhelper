@@ -1,2 +1,2 @@
-// Package binaryhelper contains [binary] package helpers.
+// Package binaryhelper contains helpers for [binary] package.
 package binaryhelper
