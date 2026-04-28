@@ -7,6 +7,8 @@ import (
 
 func TestCopyFixed(t *testing.T) {
 	var i1 int32
+	type src1 struct{ A, B int16 }
+	type dst1 struct{ X, Y int16 }
 	type args struct {
 		src any
 		dst any
@@ -22,32 +24,65 @@ func TestCopyFixed(t *testing.T) {
 			wantErr: true,
 		},
 		{name: "01",
-			args:    args{dst: testing.T{}},
+			args: args{
+				dst: testing.T{},
+			},
 			wantErr: true,
 		},
 		{name: "02",
-			args:    args{src: testing.B{}},
+			args: args{
+				src: testing.B{},
+			},
 			wantErr: true,
 		},
 		{name: "03",
-			args:    args{src: testing.F{}, dst: testing.M{}},
+			args: args{
+				src: testing.F{},
+				dst: testing.M{},
+			},
 			wantErr: true,
 		},
 		{name: "04",
-			args:    args{src: [1]byte{1}, dst: [1]byte{}},
+			args: args{
+				src: [1]byte{1},
+				dst: [1]byte{},
+			},
 			wantErr: true,
 		},
 		{name: "05",
-			args:    args{src: [1]byte{1}, dst: &([2]byte{})},
+			args: args{
+				src: [1]byte{1},
+				dst: &([2]byte{}),
+			},
+			wantErr: true,
+		},
+		{name: "06",
+			args: args{
+				src: [2]byte{1, 2},
+				dst: &([1]byte{}),
+			},
 			wantErr: true,
 		},
 		{name: "1",
-			args: args{src: int32(1234), dst: &i1},
+			args: args{
+				src: int32(1234),
+				dst: &i1,
+			},
 			want: int32(1234),
 		},
 		{name: "2",
-			args: args{src: [2]byte{1, 2}, dst: &([2]byte{})},
+			args: args{
+				src: [2]byte{1, 2},
+				dst: &([2]byte{}),
+			},
 			want: [2]byte{1, 2},
+		},
+		{name: "3",
+			args: args{
+				src: src1{A: 1, B: 2},
+				dst: &dst1{},
+			},
+			want: dst1{X: 1, Y: 2},
 		},
 	}
 	for _, tt := range tests {

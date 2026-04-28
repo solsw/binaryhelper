@@ -6,9 +6,10 @@ import (
 	"errors"
 )
 
-// CopyFixed copies bytes from 'src' to 'dst'.
-// 'src' must meet requirements for 'data' from [binary.Write].
-// 'dst' must meet requirements for 'data' from [binary.Read].
+// CopyFixed reinterprets the binary representation of 'src' into 'dst'.
+// Both 'src' and 'dst' must be fixed-size values (or pointers to them) as
+// required by [binary.Write] and [binary.Read] respectively.
+// Byte order does not affect in-process copies.
 func CopyFixed(src, dst any) error {
 	if src == nil {
 		return errors.New("src is nil")
@@ -23,6 +24,9 @@ func CopyFixed(src, dst any) error {
 	r := bytes.NewReader(b.Bytes())
 	if err := binary.Read(r, binary.LittleEndian, dst); err != nil {
 		return err
+	}
+	if r.Len() != 0 {
+		return errors.New("src is larger than dst")
 	}
 	return nil
 }
