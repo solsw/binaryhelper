@@ -9,6 +9,16 @@ func TestCopyFixed(t *testing.T) {
 	var i1 int32
 	type src1 struct{ A, B int16 }
 	type dst1 struct{ X, Y int16 }
+	type privateField struct{ x byte }
+	type nested struct {
+		First byte
+		Rest  [1]privateField
+	}
+	type padded struct {
+		A byte
+		_ byte
+		B byte
+	}
 	type args struct {
 		src any
 		dst any
@@ -56,12 +66,35 @@ func TestCopyFixed(t *testing.T) {
 			},
 			wantErr: true,
 		},
-		{name: "06",
+		{name: "oversized source",
 			args: args{
 				src: [2]byte{1, 2},
-				dst: &([1]byte{}),
+				dst: &([1]byte{9}),
 			},
 			wantErr: true,
+			want:    [1]byte{9},
+		},
+		{name: "typed nil source",
+			args:    args{src: (*uint32)(nil), dst: new(uint32)},
+			wantErr: true,
+			want:    uint32(0),
+		},
+		{name: "typed nil destination",
+			args:    args{src: uint32(1), dst: (*uint32)(nil)},
+			wantErr: true,
+		},
+		{name: "unexported field in nested destination",
+			args:    args{src: [2]byte{1, 2}, dst: []nested{{First: 9}}},
+			wantErr: true,
+			want:    []nested{{First: 9}},
+		},
+		{name: "little endian slice destination",
+			args: args{src: uint16(0x0102), dst: make([]byte, 2, 8)},
+			want: []byte{2, 1},
+		},
+		{name: "blank padding field",
+			args: args{src: []byte{1, 2, 3}, dst: &padded{}},
+			want: padded{A: 1, B: 3},
 		},
 		{name: "1",
 			args: args{
@@ -91,7 +124,7 @@ func TestCopyFixed(t *testing.T) {
 				t.Errorf("CopyFixed() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if tt.wantErr {
+			if tt.want == nil {
 				return
 			}
 			d := reflect.Indirect(reflect.ValueOf(tt.args.dst)).Interface()

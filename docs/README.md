@@ -2,9 +2,11 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/solsw/binaryhelper.svg)](https://pkg.go.dev/github.com/solsw/binaryhelper)
 [![GitHub](https://img.shields.io/badge/github--green?logo=github)](https://github.com/solsw/binaryhelper)
 
-Package `binaryhelper` contains helpers for Go's [encoding/binary](https://pkg.go.dev/encoding/binary) package.
+`binaryhelper.CopyFixed` copies between Go values with the same encoded size. Use it to read a little-endian byte sequence into a number or to copy fields between different struct types.
 
 ## Installation
+
+Requires Go 1.26 or later.
 
 ```sh
 go get github.com/solsw/binaryhelper
@@ -14,6 +16,8 @@ go get github.com/solsw/binaryhelper
 import "github.com/solsw/binaryhelper"
 ```
 
+For the GitLab module, use `github.com/solsw/binaryhelper` in both the install command and the import.
+
 ## API
 
 ### CopyFixed
@@ -22,26 +26,24 @@ import "github.com/solsw/binaryhelper"
 func CopyFixed(src, dst any) error
 ```
 
-`CopyFixed` reinterprets the binary representation of `src` into `dst`. The value of `src` is serialized with [binary.Write](https://pkg.go.dev/encoding/binary#Write) and the resulting bytes are deserialized into `dst` with [binary.Read](https://pkg.go.dev/encoding/binary#Read).
+`CopyFixed` encodes `src` in little-endian order and decodes those bytes into `dst` using the same order. The encoded sizes must match.
 
-Both `src` and `dst` must be **fixed-size values** (or pointers to them) — booleans, numeric types other than `int`, `uint` and `uintptr`, and arrays or structs containing only such types — as required by `binary.Write` and `binary.Read`. Since the copy happens entirely in-process, byte order does not affect the result.
+| Argument | Accepted forms |
+| --- | --- |
+| `src` | A fixed-size value, a slice of fixed-size elements, or a pointer to either |
+| `dst` | A pointer to a fixed-size value, a slice of fixed-size elements, or a pointer to such a slice |
 
-`dst` must be a pointer so that the result can be stored into it.
+A fixed-size value can be a boolean, a fixed-width numeric type such as `uint32` or `float64`, or an array or struct composed of fixed-size values. Struct fields are encoded in declaration order. Use a blank field (`_`) for explicit padding. Every other destination field must be exported, including fields in nested structs.
+
+For slices, the encoded size is the current length multiplied by the encoded element size. A nil slice of fixed-size elements has encoded size zero.
 
 #### Errors
 
-`CopyFixed` returns an error when:
-
-- `src` or `dst` is `nil`;
-- `src` is not a fixed-size value (reported by `binary.Write`);
-- `dst` is not a pointer to a fixed-size value, or `dst` is larger than `src` (reported by `binary.Read`);
-- `src` is larger than `dst` (bytes of `src` remain after filling `dst`).
-
-On success the binary sizes of `src` and `dst` match exactly and `dst` holds the reinterpreted value.
+`CopyFixed` returns an error for a nil interface or nil pointer, an unsupported source or destination, or unequal encoded sizes. On error, the destination retains its original value.
 
 ## Usage
 
-Copying between structs with identical binary layouts but different types:
+### Copy between struct types
 
 ```go
 package main
@@ -65,12 +67,29 @@ func main() {
 }
 ```
 
-Reinterpreting raw bytes as a number:
+### Decode a little-endian number
 
 ```go
 var n int32
-err := binaryhelper.CopyFixed([4]byte{0xD2, 0x04, 0x00, 0x00}, &n)
-// n == 1234 (the bytes are interpreted as little-endian)
+if err := binaryhelper.CopyFixed([]byte{0xd2, 0x04, 0x00, 0x00}, &n); err != nil {
+	panic(err)
+}
+fmt.Println(n) // 1234
+```
+
+### Write into a slice
+
+Pass a slice directly to fill its elements. The second call below uses a one-byte subslice of the same buffer, which is too short for a `uint16`.
+
+```go
+buf := make([]byte, 2)
+if err := binaryhelper.CopyFixed(uint16(0x0102), buf); err != nil {
+	panic(err)
+}
+fmt.Printf("% x\n", buf) // 02 01
+
+err := binaryhelper.CopyFixed(uint16(0xabcd), buf[:1])
+fmt.Printf("%t, % x\n", err != nil, buf) // true, 02 01
 ```
 
 ## See also
